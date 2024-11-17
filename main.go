@@ -13,10 +13,12 @@ const PORT = 5555
 
 // declare structures for JSON data - important to remember that all fields must
 // not be private (needs capital letters)
+
 type Recipe struct {
 	Name         string   `json:"name"`
 	Ingredients  []string `json:"ingredients"`
 	Instructions []string `json:"instructions"`
+	Tags         []string `json:"tags"`
 }
 
 type Request struct {
@@ -40,14 +42,24 @@ func unpackObject(rawRequestData []byte) Request {
 
 }
 
-func searchByName() {
+// packageResults takes the slice of Recipes and converts them back into JSON data that
+// can be sent back to the requesting client via ZeroMQ
+func packageResults(results []Recipe) []byte {
+	var encodedResult []byte
 
+	encodedResult, err := json.Marshal(results)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return encodedResult
 }
 
+// QueryByRecipeName implements a fuzzy search to match keywords to the recipe name
 func QueryByRecipeName(query string, db []Recipe) []Recipe {
 	var results []Recipe
 
-	fmt.Printf("Searching for any recipes whose name contains '%v'...\n\n", query)
+	fmt.Printf("\nSearching for any recipes whose name contains '%v'...\n", query)
 
 	// implement fuzzy search
 
@@ -63,11 +75,12 @@ func QueryByRecipeName(query string, db []Recipe) []Recipe {
 		for currentKeyword < len(keywords) {
 
 			// check if keywords are in recipe name
-			if strings.Contains(strings.ToLower(db[currentRecipe].Name), keywords[currentKeyword]) == true {
+			recipeNameToSearch := fmt.Sprint(" " + strings.ToLower(db[currentRecipe].Name) + " ")
+			if strings.Contains(recipeNameToSearch, " "+keywords[currentKeyword]+" ") == true {
 
 				// if current keyword was last keyword, then this is a match
 				if currentKeyword == len(keywords)-1 {
-					fmt.Println("Match found!\t\t" + db[currentRecipe].Name)
+					fmt.Println("Match found: \t" + db[currentRecipe].Name)
 					results = append(results, db[currentRecipe])
 					currentRecipe += 1
 					break
@@ -84,13 +97,115 @@ func QueryByRecipeName(query string, db []Recipe) []Recipe {
 			}
 		}
 	}
-	fmt.Printf("%d results found!\n", len(results))
+	fmt.Printf("Search completed, %d result(s) found!\n\n", len(results))
 	return results
 }
 
-func QueryByRecipeTags() {}
+func QueryByRecipeTags(query string, db []Recipe) []Recipe {
+	var results []Recipe
 
-func QueryByRecipeIngredients() {}
+	fmt.Printf("\nSearching for any recipes tagged with '%v'...\n", query)
+
+	// first split up the query string into a slice of words & replace any comma with spaces
+	query = strings.ToLower(query)
+	query = strings.ReplaceAll(query, ",", " ")
+	keywords := strings.Split(query, " ")
+
+	// then check to see if ALL words are contained in each recipe in the list
+	currentRecipe := 0
+	for currentRecipe < len(db) {
+
+		// convert slice of tags into one long string so can use the Contains operation
+		tag := 0
+		var recipeTags string
+		recipeTags = " "
+		for tag < len(db[currentRecipe].Tags) {
+			recipeTags += db[currentRecipe].Tags[tag] + " "
+			tag += 1
+		}
+
+		currentKeyword := 0
+		for currentKeyword < len(keywords) {
+
+			// check if keywords are in recipe name
+			if strings.Contains(strings.ToLower(recipeTags), " "+keywords[currentKeyword]+" ") == true {
+
+				// if current keyword was last keyword, then this is a match
+				if currentKeyword == len(keywords)-1 {
+					fmt.Println("Match found: \t" + db[currentRecipe].Name)
+					results = append(results, db[currentRecipe])
+					currentRecipe += 1
+					break
+
+					// otherwise, increment keyword counter to check for next keyword
+				} else {
+					currentKeyword += 1
+				}
+				// current keyword isn't in recipe name so we don't care about any other keyword matches
+			} else {
+				currentRecipe += 1
+				break // move on to checking next recipe
+
+			}
+		}
+	}
+	fmt.Printf("Search completed, %d result(s) found!\n\n", len(results))
+	return results
+
+}
+
+func QueryByRecipeIngredients(query string, db []Recipe) []Recipe {
+	var results []Recipe
+
+	fmt.Printf("\nSearching for any recipes containing the following ingredients: %v\n", query)
+
+	// first split up the query string into a slice of words and ignore commas
+	query = strings.ToLower(query)
+	query = strings.ReplaceAll(query, ",", " ")
+	keywords := strings.Split(query, " ")
+
+	// then check to see if ALL words are contained in each recipe in the list
+	currentRecipe := 0
+	for currentRecipe < len(db) {
+
+		// convert slice of ingredients into one long string so can use the Contains operation
+		tag := 0
+		var recipeIngredients string
+		recipeIngredients = " "
+		for tag < len(db[currentRecipe].Ingredients) {
+			recipeIngredients += db[currentRecipe].Ingredients[tag] + " "
+			tag += 1
+		}
+		fmt.Println(recipeIngredients)
+		currentKeyword := 0
+		for currentKeyword < len(keywords) {
+
+			// check if keywords are in recipe name
+			if strings.Contains(strings.ToLower(recipeIngredients), " "+keywords[currentKeyword]+" ") == true {
+
+				// if current keyword was last keyword, then this is a match
+				if currentKeyword == len(keywords)-1 {
+					fmt.Println("Match found: \t" + db[currentRecipe].Name)
+					results = append(results, db[currentRecipe])
+					currentRecipe += 1
+					break
+
+					// otherwise, increment keyword counter to check for next keyword
+				} else {
+					currentKeyword += 1
+				}
+				// current keyword isn't in recipe name so we don't care about any other keyword matches
+			} else {
+				currentRecipe += 1
+				break // move on to checking next recipe
+
+			}
+		}
+	}
+
+	fmt.Printf("Search completed, %d result(s) found!\n\n", len(results))
+	return results
+}
 
 func main() {
 
@@ -102,12 +217,11 @@ func main() {
 	defer socket.Close()
 
 	// start listening for requests
-
 	address := fmt.Sprintf("tcp://localhost:%v", PORT)
 	//fmt.Println(address)
 	err := socket.Listen(address)
 	if err != nil {
-
+		log.Fatal(err)
 	}
 
 	fmt.Println("The recipe search service is listening...")
@@ -115,7 +229,7 @@ func main() {
 	// START A LISTENING LOOP
 	for {
 
-		// recieve message
+		// receive message
 
 		// message should contain three parts:
 		// TYPE OF QUERY: QueryByRecipeName, QueryByRecipeTags, QueryByRecipeIngredients
@@ -127,24 +241,37 @@ func main() {
 			break
 		}
 
-		fmt.Println("message recieved!\n")
-
 		// unpack bytes into object
 		currentRequest := unpackObject(msg.Bytes())
 
-		fmt.Println("request type: " + currentRequest.RequestType)
-		fmt.Println("query: " + currentRequest.UserQuery)
+		var searchResults []Recipe
 
-		// handle the request
-		if currentRequest.RequestType == "QueryByRecipeName" {
-			searchResults := QueryByRecipeName(currentRequest.UserQuery, currentRequest.RecipeDB)
+		// handle the search request
+		switch currentRequest.RequestType {
 
-			fmt.Println(len(searchResults))
+		case "QueryByRecipeName":
+			searchResults = QueryByRecipeName(currentRequest.UserQuery, currentRequest.RecipeDB)
+
+		case "QueryByRecipeTags":
+			searchResults = QueryByRecipeTags(currentRequest.UserQuery, currentRequest.RecipeDB)
+
+		case "QueryByRecipeIngredients":
+			searchResults = QueryByRecipeIngredients(currentRequest.UserQuery, currentRequest.RecipeDB)
+
 		}
 
-		//
-		// send a response
+		// re-marshal the Recipes[] back as a byte[]
+		jsonData := packageResults(searchResults)
+		responseMsg := zmq.NewMsg(jsonData)
 
+		// send response back to client
+		err2 := socket.Send(responseMsg)
+		if err2 != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println("Listening...")
 	}
 
+	fmt.Println("Stopping service...")
 }

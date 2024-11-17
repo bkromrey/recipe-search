@@ -34,9 +34,45 @@ def search_recipe_name(socket, db):
     socket.send_json(data_for_request)
 
     # get response from microserviceA
-    # response = socket.recv()
-    # decoded_response = response.decode()
-    # print(f"decoded response from server: {decoded_response}")
+    response = socket.recv()
+    decoded_response = response.decode()
+    print(f"response from server: {decoded_response}\n\n")
+    return
+
+def search_recipe_tag(socket, db):
+
+    user_query = input("tag(s) to search for: ")
+
+    data_for_request = {
+        "request_type": "QueryByRecipeTags",
+        "user_query": user_query,
+        "recipe_db": db
+    }
+
+    socket.send_json(data_for_request)
+
+    # get response from microserviceA
+    response = socket.recv()
+    decoded_response = response.decode()
+    print(f"response from server: {decoded_response}\n\n")
+    return
+
+def search_recipe_ingredients(socket, db):
+
+    user_query = input("ingredient(s) to search for: ")
+
+    data_for_request = {
+        "request_type" : "QueryByRecipeIngredients",
+        "user_query": user_query,
+        "recipe_db": db
+    }
+
+    socket.send_json(data_for_request)
+
+    # get response back from microserviceA
+    response = socket.recv()
+    decoded_response = response.decode()
+    print(f"response from server: {decoded_response}\n\n")
     return
 
 
@@ -70,11 +106,15 @@ if __name__ == "__main__":
 
         elif userinput == '2':
             print("user typed 2\n")
+            search_recipe_tag(socket, db)
+
         elif userinput == '3':
             print("user typed 3\n")
+            search_recipe_ingredients(socket, db)
+
         else:
             if userinput != 'q' and userinput != 'Q':
-                print("please type in a valid selection or 'q' to quit.")
+                print("please type in a valid selection or 'q' to quit.\n")
 
     # when q was hit:
     socket.close()
