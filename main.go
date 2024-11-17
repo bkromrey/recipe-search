@@ -176,7 +176,7 @@ func QueryByRecipeIngredients(query string, db []Recipe) []Recipe {
 			recipeIngredients += db[currentRecipe].Ingredients[tag] + " "
 			tag += 1
 		}
-		fmt.Println(recipeIngredients)
+
 		currentKeyword := 0
 		for currentKeyword < len(keywords) {
 
@@ -226,8 +226,10 @@ func main() {
 
 	fmt.Println("The recipe search service is listening...")
 
+	clientActive := true
+
 	// START A LISTENING LOOP
-	for {
+	for clientActive {
 
 		// receive message
 
@@ -258,20 +260,30 @@ func main() {
 		case "QueryByRecipeIngredients":
 			searchResults = QueryByRecipeIngredients(currentRequest.UserQuery, currentRequest.RecipeDB)
 
+		case "q":
+			fmt.Println("Stopping service...")
+			clientActive = false
+
+		case "Q":
+			fmt.Println("Stopping service...")
+			clientActive = false
+
 		}
 
-		// re-marshal the Recipes[] back as a byte[]
-		jsonData := packageResults(searchResults)
-		responseMsg := zmq.NewMsg(jsonData)
+		if clientActive == true {
+			// re-marshal the Recipes[] back as a byte[]
+			jsonData := packageResults(searchResults)
+			responseMsg := zmq.NewMsg(jsonData)
 
-		// send response back to client
-		err2 := socket.Send(responseMsg)
-		if err2 != nil {
-			log.Fatal(err)
+			// send response back to client
+			err2 := socket.Send(responseMsg)
+			if err2 != nil {
+				log.Fatal(err)
+			}
+
+			fmt.Println("Listening...")
 		}
-
-		fmt.Println("Listening...")
 	}
 
-	fmt.Println("Stopping service...")
+	fmt.Println("Service stopped.")
 }

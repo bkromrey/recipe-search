@@ -89,33 +89,41 @@ if __name__ == "__main__":
     socket.connect(address_to_connect)
 
 
-    menu_prompt = ("Please make a selection.\n"
+    menu_prompt = ("Please make a selection or 'q' to quit.\n"
                    "[1] to search by recipe name\n"
                    "[2] to search by recipe tag\n"
                    "[3] to search based on ingredients\n")
 
 
     userinput = None
-    while userinput != 'q' and input != "Q":
+
+    while True:
         # print(menu_prompt)
         userinput = input(menu_prompt)
 
         if userinput == '1':
-            print("user typed 1\n")
             search_recipe_name(socket, db)
 
         elif userinput == '2':
-            print("user typed 2\n")
             search_recipe_tag(socket, db)
 
         elif userinput == '3':
-            print("user typed 3\n")
             search_recipe_ingredients(socket, db)
 
+        elif userinput == 'q' or userinput == 'Q':
+            break
+
         else:
-            if userinput != 'q' and userinput != 'Q':
-                print("please type in a valid selection or 'q' to quit.\n")
+            print("Please type in a valid selection or 'q' to quit.\n")
 
     # when q was hit:
+    data_for_request = {
+        "request_type" : "q",
+        "user_query": "",
+        "recipe_db": db
+    }
+
+    socket.send_json(data_for_request)
+
     socket.close()
     print("Connection closed.")
