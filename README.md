@@ -58,4 +58,4 @@ print(f"response from server: {decoded_response}\n\n")
 ```
 
 ### UML Diagram
-![UML Sequence Diagram](images/microserviceA-UML.png])
+![image](https://github.com/user-attachments/assets/e2e90c06-ce1d-4501-be39-370b378cad37)
